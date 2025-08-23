@@ -2,14 +2,34 @@
 const mongoose = require('mongoose');
 
 const eventSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  description: { type: String, required: true },
-  date: { type: Date, required: true },
-  location: { type: String, required: true },
-  totalTickets: { type: Number, required: true },
-  ticketPrice: { type: Number, required: true },
-  imageUrl: { type: String, required: true },
-  organizer: { type: String, required: true, lowercase: true, trim: true },
-}, { timestamps: true });
+  name: {
+    type: String,
+    required: true
+  },
+  description: {
+    type: String,
+    required: true
+  },
+  date: {
+    type: Date,
+    required: true
+  },
+  venue: {
+    type: String,
+    required: true
+  },
+  totalTickets: {
+    type: Number,
+    required: true
+  },
+  price: {
+    type: Number,
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
 
 module.exports = mongoose.model('Event', eventSchema);

@@ -3,13 +3,13 @@
 
 // --- Imports ---
 const express = require('express');
+const connectDB = require('./db/db'); // Import DB connection function
 const cors = require('cors');
-const connectDB = require('./config/db'); // Import DB connection function
-require('dotenv').config();
+require('dotenv').config(); // Remove the path option since .env is in root
 
 // --- Initializations ---
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT;
 
 // --- Connect to Database ---
 connectDB();
@@ -26,9 +26,7 @@ app.get('/', (req, res) => {
 });
 
 // Define API Routes
-// This tells the app to use the routes defined in the events.js file
-// for any URL that starts with /api/events
-app.use('/api/events', require('./routes/api/events'));
+app.use('/api/events', require('./routes/events'));
 
 
 // --- TODO: Future Enhancements ---
