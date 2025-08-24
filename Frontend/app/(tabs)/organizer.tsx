@@ -122,7 +122,7 @@ export default function OrganizerScreen() {
       </View>
 
       {/* --- VALIDATION LOGIC --- */}
-      {isWalletConnected ? (
+      {isWalletConnected ? ( 
         <>
           <View style={styles.statsContainer}>
             <View style={styles.statCard}><TrendingUp size={24} color="#6366F1" /><Text style={styles.statValue}>{totalRevenue.toFixed(2)} APT</Text><Text style={styles.statLabel}>Total Revenue</Text></View>

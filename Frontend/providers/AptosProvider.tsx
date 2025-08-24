@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Alert, Linking } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 import * as LinkingExpo from 'expo-linking';
 
@@ -13,10 +13,8 @@ interface AptosContextState {
   signAndSubmitTransaction: (payload: any) => Promise<{ hash: string }>;
 }
 
-// Create the context
 const AptosContext = createContext<AptosContextState | undefined>(undefined);
 
-// Custom hook to use the context
 export const useAptos = () => {
   const context = useContext(AptosContext);
   if (!context) {
@@ -25,105 +23,105 @@ export const useAptos = () => {
   return context;
 };
 
-// The provider component
 export function AptosProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<{ address: string; publicKey: string } | null>(null);
-  const DAPP_URL = LinkingExpo.createURL('/'); // Deep link back to your app
+  const DAPP_URL = LinkingExpo.createURL('/');
   const PETRA_DEEPLINK = "petra://";
 
-  // Initialize Aptos client
   const aptosConfig = new AptosConfig({ network: Network.TESTNET });
   const aptos = new Aptos(aptosConfig);
 
-  // Function to handle parsing the URL from Petra
-  const handleDeepLink = (url: string | null) => {
-    if (!url) return;
-    try {
-      const urlObject = new URL(url);
-      const params = urlObject.searchParams;
-      
-      // Petra wallet sends back data in a 'data' parameter for connect
-      if (urlObject.hostname === 'v1' && urlObject.pathname.includes('connect')) {
-        const address = params.get('address');
-        const publicKey = params.get('publicKey');
-        
-        if (address && publicKey) {
-          setAccount({ address, publicKey });
-          Alert.alert('Success', 'Wallet connected successfully!');
-        }
-      }
-      // You can add handlers for other methods like 'signAndSubmitTransaction' here
-      // which might use a different structure.
-    } catch (error) {
-      console.error('Failed to handle deep link:', error);
-      Alert.alert('Error', 'Failed to process wallet response.');
-    }
-  };
-
-  // --- FIX APPLIED HERE ---
+  // --- Mobile Deep Link Handler ---
   useEffect(() => {
-    // 1. Handle the initial URL that the app was opened with
-    const getInitialUrl = async () => {
-      const initialUrl = await Linking.getInitialURL();
-      if (initialUrl) {
-        handleDeepLink(initialUrl);
-      }
-    };
-    getInitialUrl();
+    if (Platform.OS !== 'web') {
+      const handleDeepLink = (url: string | null) => {
+        if (!url) return;
+        try {
+          const urlObject = new URL(url);
+          const params = urlObject.searchParams;
+          if (urlObject.hostname === 'v1' && urlObject.pathname.includes('connect')) {
+            const address = params.get('address');
+            const publicKey = params.get('publicKey');
+            if (address && publicKey) {
+              setAccount({ address, publicKey });
+              Alert.alert('Success', 'Wallet connected successfully!');
+            }
+          }
+        } catch (error) {
+          console.error('Failed to handle deep link:', error);
+        }
+      };
 
-    // 2. Listen for subsequent URLs that come in while the app is running
-    const subscription = Linking.addEventListener('url', (event) => {
-      handleDeepLink(event.url);
-    });
+      const getInitialUrl = async () => {
+        const initialUrl = await Linking.getInitialURL();
+        if (initialUrl) handleDeepLink(initialUrl);
+      };
+      getInitialUrl();
 
-    // Cleanup listener on unmount
-    return () => {
-      subscription.remove();
-    };
+      const subscription = Linking.addEventListener('url', (event) => {
+        handleDeepLink(event.url);
+      });
+
+      return () => subscription.remove();
+    }
   }, []);
 
   const connectWallet = async () => {
-    try {
-      // Construct the connection request URL for Petra
-      const connectUrl = new URL(`${PETRA_DEEPLINK}v1/connect`);
-      connectUrl.searchParams.set('dapp_url', DAPP_URL);
-      
-      // Check if Petra is installed
-      const canOpen = await Linking.canOpenURL(PETRA_DEEPLINK);
-      if (!canOpen) {
-          throw new Error("Petra wallet is not installed.");
+    // --- WEB BROWSER LOGIC ---
+    if (Platform.OS === 'web') {
+      try {
+        // @ts-ignore - Petra injects this into the window object
+        if (window.petra) {
+          // @ts-ignore
+          const response = await window.petra.connect();
+          setAccount({
+            address: response.address,
+            publicKey: response.publicKey,
+          });
+          Alert.alert('Success', 'Wallet connected!');
+        } else {
+          Alert.alert('Petra Not Found', 'Please install the Petra Wallet browser extension.');
+        }
+      } catch (error) {
+        console.error('Petra connection error:', error);
       }
-      
-      await Linking.openURL(connectUrl.toString());
-    } catch (error) {
-      console.error('Failed to open Petra Wallet:', error);
-      Alert.alert('Error', 'Could not open Petra Wallet. Please ensure it is installed on your device.');
+    } 
+    // --- MOBILE LOGIC ---
+    else {
+      try {
+        const connectUrl = new URL(`${PETRA_DEEPLINK}v1/connect`);
+        connectUrl.searchParams.set('dapp_url', DAPP_URL);
+        await Linking.openURL(connectUrl.toString());
+      } catch (error) {
+        Alert.alert('Error', 'Could not open Petra Wallet. This only works in a development build, not Expo Go.');
+      }
     }
   };
 
-  const disconnectWallet = () => {
+  const disconnectWallet = async () => {
+    if (Platform.OS === 'web') {
+      // @ts-ignore
+      if (window.petra) {
+        // @ts-ignore
+        await window.petra.disconnect();
+      }
+    }
     setAccount(null);
     Alert.alert('Disconnected', 'Wallet has been disconnected.');
   };
 
   const signAndSubmitTransaction = async (payload: any): Promise<{ hash: string }> => {
-    if (!account) {
-      throw new Error("Wallet not connected");
-    }
+    if (!account) throw new Error("Wallet not connected");
+
+    // This part would also need to be adapted for web vs. mobile
+    // For now, we continue with the simulation
     console.log("Simulating transaction with payload:", payload);
     await new Promise(resolve => setTimeout(resolve, 1500));
     const simulatedHash = `0x${Math.random().toString(16).slice(2, 66)}`;
     return { hash: simulatedHash };
   };
 
-  const value = {
-    aptos,
-    account,
-    isWalletConnected: !!account,
-    connectWallet,
-    disconnectWallet,
-    signAndSubmitTransaction,
-  };
+  const value = { aptos, account, isWalletConnected: !!account, connectWallet, disconnectWallet, signAndSubmitTransaction };
 
   return <AptosContext.Provider value={value}>{children}</AptosContext.Provider>;
 }
