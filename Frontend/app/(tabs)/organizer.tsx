@@ -11,17 +11,18 @@ import {
   Image,
 } from 'react-native';
 import { router } from 'expo-router';
-import { TrendingUp, Users, DollarSign, Calendar, Clock } from 'lucide-react-native';
+import { TrendingUp, Users, DollarSign, Calendar, Clock, Link } from 'lucide-react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
-// --- Type Definitions ---
+// --- Core Imports ---
+import { useAptos } from '../../providers/AptosProvider'; // Adjust path
+import { WalletButton } from '../../components/WalletButton'; // Adjust path
 
+// --- Type Definitions ---
 interface Event {
   id: string;
   name: string;
-  // Store the primary date object as an ISO string for reliability
   eventDateTimeISO: string; 
-  // Keep human-readable versions for display
   date: string;
   time: string;
   location: string;
@@ -32,54 +33,29 @@ interface Event {
   imageUrl: string;
 }
 
-// --- Mock Components & Hooks (Replace with your actual imports) ---
-
-const WalletButton = () => <TouchableOpacity style={styles.mockButton}><Text style={styles.mockButtonText}>Wallet</Text></TouchableOpacity>;
-
+// --- Mock Components (keep if you don't have real ones yet) ---
 const LoadingButton: React.FC<{ title: string; onPress: () => void; loading: boolean }> = ({ title, onPress, loading }) => (
   <TouchableOpacity onPress={onPress} style={[styles.mockButton, { backgroundColor: '#6366F1' }]} disabled={loading}>
     <Text style={[styles.mockButtonText, { color: '#FFF' }]}>{loading ? 'Creating...' : title}</Text>
   </TouchableOpacity>
 );
-
 const EventCard: React.FC<{ event: Event }> = ({ event }) => (
     <View style={styles.eventCardContainer}>
-        <Image 
-            source={{ uri: event.imageUrl }} 
-            style={styles.eventImage}
-            // Add a fallback placeholder image
-            onError={(e) => console.log("Image loading error:", e.nativeEvent.error)}
-        />
+        <Image source={{ uri: event.imageUrl }} style={styles.eventImage} />
         <View style={styles.eventDetails}>
             <Text style={styles.eventCardTitle}>{event.name}</Text>
             <Text style={styles.eventCardSubtitle}>{event.date} at {event.time}</Text>
             <Text style={styles.eventCardSubtitle}>{event.location}</Text>
             <View style={styles.eventCardStats}>
                 <Text style={styles.eventCardPrice}>{event.price} APT</Text>
-                <Text style={styles.eventCardTickets}>
-                    {event.soldTickets} / {event.totalTickets} Sold
-                </Text>
+                <Text style={styles.eventCardTickets}>{event.soldTickets} / {event.totalTickets} Sold</Text>
             </View>
-             {event.soldTickets >= event.totalTickets && (
-                <View style={styles.soldOutBadge}>
-                    <Text style={styles.soldOutText}>SOLD OUT</Text>
-                </View>
-            )}
+             {event.soldTickets >= event.totalTickets && (<View style={styles.soldOutBadge}><Text style={styles.soldOutText}>SOLD OUT</Text></View>)}
         </View>
     </View>
 );
 
-const useAptos = () => ({
-    isWalletConnected: true,
-    signAndSubmitTransaction: async (payload: any): Promise<{ hash: string }> => {
-        console.log("Simulating transaction:", payload);
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        return { hash: Math.random().toString(36).substring(2, 10) };
-    }
-});
-
 // --- Main Component ---
-
 export default function OrganizerScreen() {
   const { isWalletConnected, signAndSubmitTransaction } = useAptos();
   
@@ -90,41 +66,13 @@ export default function OrganizerScreen() {
   const [ticketPrice, setTicketPrice] = useState('');
   const [totalTickets, setTotalTickets] = useState('');
   const [imageUrl, setImageUrl] = useState('');
-
-  // Date & Time Picker State
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  // Mock data with reliable ISO dates and image URLs
   const [createdEvents, setCreatedEvents] = useState<Event[]>([
-    {
-      id: '1',
-      name: 'Aptos Blockchain Conference',
-      eventDateTimeISO: new Date('2025-03-15T10:00:00').toISOString(),
-      date: 'March 15, 2025',
-      time: '10:00 AM',
-      location: 'San Francisco, CA',
-      price: 0.5,
-      totalTickets: 100,
-      soldTickets: 67,
-      checkedInAttendees: ['user1', 'user2'],
-      imageUrl: 'https://placehold.co/800x400/6366f1/ffffff?text=Blockchain+Conf',
-    },
-    {
-      id: '2',
-      name: 'DeFi Summit 2025',
-      // This event is in the past for testing check-in logic
-      eventDateTimeISO: new Date('2025-08-24T03:00:00').toISOString(),
-      date: 'August 24, 2025',
-      time: '03:00 AM',
-      location: 'New York, NY',
-      price: 0.8,
-      totalTickets: 150,
-      soldTickets: 150,
-      checkedInAttendees: [],
-      imageUrl: 'https://placehold.co/800x400/10b981/ffffff?text=DeFi+Summit',
-    },
+    { id: '1', name: 'Aptos Blockchain Conference', eventDateTimeISO: new Date('2025-03-15T10:00:00').toISOString(), date: 'March 15, 2025', time: '10:00 AM', location: 'San Francisco, CA', price: 0.5, totalTickets: 100, soldTickets: 67, checkedInAttendees: ['user1', 'user2'], imageUrl: 'https://placehold.co/800x400/6366f1/ffffff?text=Blockchain+Conf' },
+    { id: '2', name: 'DeFi Summit 2025', eventDateTimeISO: new Date('2025-08-24T03:00:00').toISOString(), date: 'August 24, 2025', time: '03:00 AM', location: 'New York, NY', price: 0.8, totalTickets: 150, soldTickets: 150, checkedInAttendees: [], imageUrl: 'https://placehold.co/800x400/10b981/ffffff?text=DeFi+Summit' },
   ]);
 
   const onChangeDate = (event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -144,50 +92,13 @@ export default function OrganizerScreen() {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
     setIsCreating(true);
-
     try {
-      const payload = {
-        function: `0x123::ticketing::create_event`,
-        type_arguments: [],
-        arguments: [
-          eventName,
-          date.toISOString(), // Send full ISO string to blockchain
-          parseFloat(ticketPrice),
-          parseInt(totalTickets),
-          imageUrl,
-        ],
-      };
-
+      const payload = { function: `0x123::ticketing::create_event`, type_arguments: [], arguments: [ eventName, date.toISOString(), parseFloat(ticketPrice), parseInt(totalTickets), imageUrl ] };
       const response = await signAndSubmitTransaction(payload);
-
-      const newEvent: Event = {
-        id: response.hash,
-        name: eventName,
-        // Add the reliable ISO string for logic
-        eventDateTimeISO: date.toISOString(),
-        // Keep human-readable versions for display
-        date: date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }),
-        time: date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
-        location: eventLocation,
-        price: parseFloat(ticketPrice),
-        totalTickets: parseInt(totalTickets),
-        soldTickets: 0,
-        checkedInAttendees: [],
-        imageUrl: imageUrl,
-      };
-
+      const newEvent: Event = { id: response.hash, name: eventName, eventDateTimeISO: date.toISOString(), date: date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }), time: date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }), location: eventLocation, price: parseFloat(ticketPrice), totalTickets: parseInt(totalTickets), soldTickets: 0, checkedInAttendees: [], imageUrl: imageUrl };
       setCreatedEvents(prev => [newEvent, ...prev]);
-
-      // Reset form
-      setEventName('');
-      setEventLocation('');
-      setTicketPrice('');
-      setTotalTickets('');
-      setImageUrl('');
-      setDate(new Date());
-
+      setEventName(''); setEventLocation(''); setTicketPrice(''); setTotalTickets(''); setImageUrl(''); setDate(new Date());
       Alert.alert('Success', 'Event created successfully!');
     } catch (error) {
       console.error(error);
@@ -210,10 +121,10 @@ export default function OrganizerScreen() {
         <WalletButton />
       </View>
 
+      {/* --- VALIDATION LOGIC --- */}
       {isWalletConnected ? (
         <>
           <View style={styles.statsContainer}>
-            {/* Stats Cards */}
             <View style={styles.statCard}><TrendingUp size={24} color="#6366F1" /><Text style={styles.statValue}>{totalRevenue.toFixed(2)} APT</Text><Text style={styles.statLabel}>Total Revenue</Text></View>
             <View style={styles.statCard}><Users size={24} color="#10B981" /><Text style={styles.statValue}>{totalSoldTickets}</Text><Text style={styles.statLabel}>Tickets Sold</Text></View>
             <View style={styles.statCard}><DollarSign size={24} color="#F59E0B" /><Text style={styles.statValue}>{createdEvents.length}</Text><Text style={styles.statLabel}>Events Created</Text></View>
@@ -225,39 +136,12 @@ export default function OrganizerScreen() {
               <TextInput style={styles.input} placeholder="Event Name" value={eventName} onChangeText={setEventName} />
               <TextInput style={styles.input} placeholder="Location" value={eventLocation} onChangeText={setEventLocation} />
               <TextInput style={styles.input} placeholder="Event Image URL" value={imageUrl} onChangeText={setImageUrl} />
-              
               <View style={styles.dateTimePickerContainer}>
-                  <TouchableOpacity style={styles.pickerButton} onPress={() => setShowDatePicker(true)}>
-                      <Calendar size={20} color="#64748B"/>
-                      <Text style={styles.pickerText}>{date.toLocaleDateString()}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.pickerButton} onPress={() => setShowTimePicker(true)}>
-                      <Clock size={20} color="#64748B"/>
-                      <Text style={styles.pickerText}>{date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
-                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.pickerButton} onPress={() => setShowDatePicker(true)}><Calendar size={20} color="#64748B"/><Text style={styles.pickerText}>{date.toLocaleDateString()}</Text></TouchableOpacity>
+                  <TouchableOpacity style={styles.pickerButton} onPress={() => setShowTimePicker(true)}><Clock size={20} color="#64748B"/><Text style={styles.pickerText}>{date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text></TouchableOpacity>
               </View>
-
-              {showDatePicker && (
-                <DateTimePicker
-                  testID="datePicker"
-                  value={date}
-                  mode="date"
-                  is24Hour={true}
-                  display="default"
-                  onChange={onChangeDate}
-                />
-              )}
-              {showTimePicker && (
-                <DateTimePicker
-                  testID="timePicker"
-                  value={date}
-                  mode="time"
-                  is24Hour={false}
-                  display="default"
-                  onChange={onChangeTime}
-                />
-              )}
-
+              {showDatePicker && (<DateTimePicker value={date} mode="date" display="default" onChange={onChangeDate} />)}
+              {showTimePicker && (<DateTimePicker value={date} mode="time" display="default" onChange={onChangeTime} />)}
               <TextInput style={styles.input} placeholder="Ticket Price (APT)" value={ticketPrice} onChangeText={setTicketPrice} keyboardType="decimal-pad" />
               <TextInput style={styles.input} placeholder="Total Tickets" value={totalTickets} onChangeText={setTotalTickets} keyboardType="number-pad" />
               <LoadingButton title="Create Event" onPress={handleCreateEvent} loading={isCreating} />
@@ -267,20 +151,18 @@ export default function OrganizerScreen() {
           <View style={styles.eventsSection}>
             <Text style={styles.sectionTitle}>Your Events</Text>
             {createdEvents.map((event) => (
-              <TouchableOpacity
-                key={event.id}
-                onPress={() => router.push({
-                  pathname: '/EventDetailScreen',
-                  params: { eventId: event.id, events: JSON.stringify(createdEvents) }
-                })}
-              >
+              <TouchableOpacity key={event.id} onPress={() => router.push({ pathname: '/EventDetailScreen', params: { eventId: event.id, events: JSON.stringify(createdEvents) }})}>
                 <EventCard event={event} />
               </TouchableOpacity>
             ))}
           </View>
         </>
       ) : (
-        <View style={styles.connectPrompt}><Text style={styles.connectTitle}>Connect Your Wallet</Text><Text style={styles.connectText}>Connect your wallet to start creating events.</Text></View>
+        <View style={styles.connectPrompt}>
+          <Link size={64} color="#6366F1" strokeWidth={1.5} />
+          <Text style={styles.connectTitle}>Connect Your Wallet</Text>
+          <Text style={styles.connectText}>Please connect your Petra wallet to create and manage events.</Text>
+        </View>
       )}
     </ScrollView>
   );
@@ -303,11 +185,11 @@ const styles = StyleSheet.create({
   pickerButton: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', gap: 8 },
   pickerText: { fontSize: 16, color: '#1E293B' },
   eventsSection: { padding: 20, paddingTop: 0 },
-  connectPrompt: { margin: 20, marginTop: 100, alignItems: 'center', padding: 40, backgroundColor: '#FFFFFF', borderRadius: 20 },
-  connectTitle: { fontSize: 24, fontWeight: 'bold', color: '#1E293B', marginBottom: 12 },
+  connectPrompt: { margin: 20, marginTop: 100, alignItems: 'center', padding: 40, backgroundColor: '#FFFFFF', borderRadius: 20, gap: 16 },
+  connectTitle: { fontSize: 24, fontWeight: 'bold', color: '#1E293B' },
   connectText: { fontSize: 16, color: '#64748B', textAlign: 'center', lineHeight: 24 },
-  mockButton: { backgroundColor: '#E2E8F0', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
-  mockButtonText: { color: '#1E293B', fontWeight: '600' },
+  mockButton: { paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  mockButtonText: { fontWeight: '600', color: '#FFF' },
   eventCardContainer: { backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, overflow: 'hidden' },
   eventImage: { width: '100%', height: 150, backgroundColor: '#E2E8F0' },
   eventDetails: { padding: 16 },

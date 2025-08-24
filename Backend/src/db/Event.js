@@ -22,8 +22,16 @@ const eventSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  ticketsSold: {
+    type: Number,
+    default: 0
+  },
   price: {
     type: Number,
+    required: true
+  },
+  organizerId: {
+    type: String, // Organizer's wallet address
     required: true
   },
   createdAt: {

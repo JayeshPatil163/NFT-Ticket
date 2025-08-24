@@ -6,6 +6,7 @@ const express = require('express');
 const connectDB = require('./db/db'); // Import DB connection function
 const cors = require('cors');
 require('dotenv').config(); // Remove the path option since .env is in root
+const IP_ADDRESS = '10.20.190.198'; 
 
 // --- Initializations ---
 const app = express();
@@ -25,8 +26,15 @@ app.get('/', (req, res) => {
   res.send('Welcome to the NFT Ticket Backend API!');
 });
 
+
+const eventsRouter = require('./routes/api/events');
+const bookingsRouter = require('./routes/api/bookings');
+
+app.use('/api/events', eventsRouter);
+app.use('/api/bookings', bookingsRouter);
+
 // Define API Routes
-app.use('/api/events', require('./routes/events'));
+// app.use('/api/events', require('./routes/events'));
 
 
 // --- TODO: Future Enhancements ---
@@ -37,6 +45,4 @@ app.use('/api/events', require('./routes/events'));
 
 
 // --- Server Listener ---
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+app.listen(PORT, IP_ADDRESS, () => console.log(`Server started on http://${IP_ADDRESS}:${PORT}`));
